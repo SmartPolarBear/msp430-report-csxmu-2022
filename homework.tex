@@ -233,6 +233,122 @@
 
 \section{PCB制作部分}
 
+\subsection{PCB设计过程及遇到的主要问题}
+
+PCB制作过程和遇到的问题如表~\ref{tbl:pcb}。
+
+\begin{table}[htbp]
+	\renewcommand\arraystretch{1.5}
+	\centering
+	\caption{PCB制作过程和遇到的问题}
+	\label{tbl:pcb}
+	\begin{tabular}{p{4cm}|p{8cm}}
+		\toprule
+		\hline
+		制作过程 & 问题 \\
+		\hline
+		原理图绘制 & \begin{minipage}[t]{8cm}
+			\begin{enumerate}
+				\item 在绘制原理图时连线有虚接的现象。
+				\item 没有连接到正确的端口。
+			\end{enumerate}
+		\end{minipage} 
+		
+		\\
+		\hline
+		封装 & \begin{minipage}[t]{8cm}
+			\begin{enumerate}
+				\item 某些封装没有注意尺寸问题，使得原件安装困难。
+				\item 有些封装没有明显标注正负极性，导致安装的时候翻查原理图。
+			\end{enumerate}
+		\end{minipage} 
+		
+		\\
+		\hline
+		布线 & \begin{minipage}[t]{8cm}
+			\begin{enumerate}
+				\item 没有注意线宽导致线过细，之后进行了修改
+				\item 在保证无锐角、无重合的时候遇到了困难，之后重新调整了原件布置顺序
+				\item 开关的引脚尺寸不合适
+			\end{enumerate}
+		\end{minipage} 
+
+		\\
+		\hline
+		布局 & \begin{minipage}[t]{8cm}
+			\begin{enumerate}
+				\item 有些部分没有为安装预留足够的空隙
+				\item 没有留够助焊区域使得焊接困难
+			\end{enumerate}
+		\end{minipage} 
+
+		\\
+		\hline
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+PCB制作过程中的原理图如图~\ref*{fig:schematic}。
+
+\begin{figure}[H]
+	\centering
+	\caption{原理图}
+	\label{fig:schematic}
+	\includegraphics[width=0.5\textwidth]{Schematic.png}
+\end{figure}
+
+封装如图~\ref{fig:package}，PCB的正反面如图~\ref{fig:pcb}。实物图如图~\ref{fig:real}。
+
+\begin{figure}[htbp]
+	\centering
+	\caption{封装}
+	\label{fig:package}
+	\includegraphics[width=0.6\textwidth]{package.png}
+\end{figure}
+
+
+\begin{figure}[htbp]
+    \centering
+	\caption{PCB}
+	\label{fig:pcb}
+	\subfigure[顶部]{
+		\begin{minipage}[t]{0.48\linewidth}
+			\centering
+			\includegraphics[width=0.8\textwidth]{pcb_top.png}
+	\end{minipage}}
+	\subfigure[底部]{
+		\begin{minipage}[t]{0.48\linewidth}
+			\centering
+			\includegraphics[width=0.8\textwidth]{pcb_bottom.png}
+	\end{minipage}}
+\end{figure}
+
+\begin{figure}[htbp]
+	\centering
+	\caption{实物图}
+	\label{fig:real}
+	\includegraphics[width=0.6\textwidth]{real.jpg}
+\end{figure}
+
+
+\clearpage
+\subsection{注意事项}
+
+\begin{enumerate}
+	\item 需要插接导线或者其它线缆的接口元器件一般放到电路板的外侧，
+	并且接线的一面要朝外。例如，P1主控板插针一般放到电路板的外侧，
+	使单片机接上后多余的部分露在外侧，减少占用PCB板空间。
+
+	\item 元器件就近原则。元器件就近放置，可以缩短PCB导线的距离，
+	如果是去耦电容或者滤波电容，越靠近元器件，效果越好。
+	例如，H5和SW1就近放置，可以缩短PCB导线距离。
+
+	\item 整齐排列。一个IC芯片的辅助电容电阻电路，围绕此IC把电阻电容整齐的排列，
+	可以更美观。例如，R6、R7和C10、C8整齐排列，使整个电路板美观。
+
+	\item 在排列放置元件时，要考虑到实际安装的要求，避免把针脚画反导致需要用线搭接。
+\end{enumerate}
+
 \section{MSP430单片机部分}
 
 \subsection{作业1}
