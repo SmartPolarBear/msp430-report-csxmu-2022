@@ -349,23 +349,405 @@ PCB制作过程中的原理图如图~\ref*{fig:schematic}。
 	\item 在排列放置元件时，要考虑到实际安装的要求，避免把针脚画反导致需要用线搭接。
 \end{enumerate}
 
+\subsection{主要挑战}
+
+\begin{itemize}
+	\item 封装：元件封装需要耐心和细心，为了取得良好的效果，我首先在库中寻找符合规格的封装，对封装间隔和引脚对不上的元件，仔细一个个测量修改。
+	\item 布局：许多元件需要额外留空间才能放置，如主控板插针需要布局在PCB板外侧，突出的地方可以留在外部减少空间，
+	LCD屏幕的位置需要预留出左右两侧较多的空间防止元件与屏幕干涉。
+\end{itemize}
+
+\subsection{个人总结和经验感受}
+
+通过两天半的PCB电路板训练，从PCB原理图、封装、原理图库、PCB库、PCB布局、布线、覆铜，通过立创平台提交文件和订单，收到PCB板并运用到小车上，我学习了电路板设计制作和使用的流程。
+对PCB的经验总结，就是要仔细地对元器件进行封装和检查，在设计时考虑布局的合理性。立创平台是功能强大的SaaS平台，使用非常方便，既有丰富的元件库，而且操作简单便捷，无需额外安装。
+这两天半学到的技能对日后参加比赛、制作电子器件有很大的帮助。
+
 \section{MSP430单片机部分}
 
 \subsection{作业1}
+读取 MSP430G2553 LaunchPad 上S2的按键状态，并用该按键控制LED1。按键按下时让LED 1亮起，按键松开时让LED 1熄灭。
+
+\begin{lstlisting}[language=c++,numbers=left,style=CppStyle,caption=作业1,label={code:p1}]
+#include <msp430.h> 
+int main(void)
+{
+    WDTCTL = WDTPW | WDTHOLD;    // stop watchdog timer
+
+    P1DIR |= BIT0;
+    P1DIR &= ~BIT3;
+    P1OUT|=BIT3;
+    P1REN |= BIT3;
+
+    while(1)
+    {
+        if(!(BIT3 & P1IN))
+            P1OUT |= BIT0;
+        else
+            P1OUT &= ~BIT0;
+    }
+    return 0;
+}
+\end{lstlisting}
+
+\subsubsection{现象和讨论}
+MSP430G2553 LaunchPad 上 S2按键按下时让 LED 1亮起，按键松开时让 LED 1熄灭。
+按键S2对应P1.3端口，设置P1.3为输入，LED1对应P1.0端口，设置P1.0为输出，使得按下S2时，
+P1.0输出为0，让灯亮，松开时，P1.0输出为1，让灯灭。
+
+在实现上，由于该程序比较简单，没有复杂的需求，对资源管理的要求不高，所以直接轮询而不是使用中断。
+但这种方式可能浪费CPU资源，在更复杂的程序中应该使用中断。
 
 \subsection{作业2}
+在上一节Blink程序的基础上，将MCLK分别设置为1MHz和8MHz
+并观察LED1闪烁的频率有何变化。
+
+\begin{lstlisting}[language=c++,numbers=left,style=CppStyle,caption=作业2,label={code:p2}]
+
+#include <msp430g2553.h>
+
+void set_1mhz()
+{
+  BCSCTL1 = CALBC1_1MHZ; // Set range
+
+  DCOCTL = CALDCO_1MHZ;
+
+  BCSCTL2 &= ~(DIVS_3); // SMCLK = DCO = 1MHz
+}
+
+void set_8mhz()
+{
+  BCSCTL1 = CALBC1_8MHZ; // Set range
+
+  DCOCTL = CALBC1_8MHZ;
+
+  BCSCTL2 &= ~(DIVS_3); // SMCLK = DCO = 1MHz
+}
+
+int main()
+{
+  WDTCTL = WDTPW | WDTHOLD; // stop watchdog timer
+  P1DIR |= 0x01;            // configure P1.0 as output
+
+  set_1mhz();
+  //set_8mhz();
+
+  volatile unsigned int i; // volatile to prevent optimization
+
+  while (1)
+  {
+    P1OUT ^= 0x01; // toggle P1.0
+    for (i = 10000; i > 0; i--)
+      __delay_cycles(10); // delay
+  }
+  return 0;
+}
+\end{lstlisting}
+
+\subsubsection{现象和讨论}
+通过对比将主时钟设为1MHz和8MHz的情况下，能明显感觉到8MHz下LED1闪烁频率比1MHz快。
+通过改变主时钟频率来改变运行速度从而改变时钟的频率。
+
 
 \subsection{作业3}
+通过GPIO中断的方式，用两个按键分别控制两盏不同的LED灯。每按下一次按键，相应的LED灯改变一次亮灭状态。
+提示：板子上只有一个按键S2，可以用杜邦线一端连接在GND或者VCC，另外一端触碰下自己选择的IO口，模拟按键按下的状态。
+
+
+\begin{lstlisting}[language=c++,numbers=left,style=CppStyle,caption=作业3,label={code:p3}]
+
+#include <msp430.h> 
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void)
+#elif defined(__GNUC__)
+void __attribute__((interrupt(PORT1_VECTOR))) Port_1(void)
+#else
+#error Compiler not supported!
+#endif
+{
+    if(!(P1IN & BIT4))
+    {
+        P1OUT ^= BIT0;
+        P1IFG &= ~BIT4;
+    }
+    if(!(P1IN & BIT5))
+    {
+        P1OUT ^= BIT6;
+        P1IFG &= ~BIT5;
+    }
+
+}
+
+int main(void)
+{
+    WDTCTL = WDTPW + WDTHOLD;   // stop watchdog timer
+    P1DIR |= BIT0;
+    P1OUT &= ~BIT0;
+
+    P1DIR |= BIT6;
+    P1OUT &= ~BIT6;
+
+    P1DIR &= ~BIT4;
+    P1OUT != BIT4;
+    P1REN |= BIT4;
+
+    P1DIR &= ~BIT5;
+    P1OUT != BIT5;
+    P1REN |= BIT5;
+
+    P1IES |= BIT4;
+    P1IFG &= ~BIT4;
+    P1IE |= BIT4;
+
+    P1IES |= BIT5;
+    P1IFG &= ~BIT5;
+    P1IE |= BIT5;
+
+    __bis_SR_register(GIE);
+    return 0;
+}
+\end{lstlisting}
+
 
 \subsection{作业4}
+编程实现：利用定时器编写呼吸灯。所谓呼吸灯是指LED在一个周期内先逐渐变亮，再逐渐变暗。
+
+\begin{lstlisting}[language=c++,numbers=left,style=CppStyle,caption=作业4,label={code:p4}]
+
+#include <msp430g2553.h>
+
+int IncDec_PWM = 1;
+
+int main(void)
+{
+
+  /*** Watchdog timer and clock Set-Up ***/
+  WDTCTL = WDTPW + WDTHOLD; // Stop watchdog timer
+  DCOCTL = 0;               // Select lowest DCOx and MODx
+  BCSCTL1 = CALBC1_1MHZ;    // Set range
+  DCOCTL = CALDCO_1MHZ;     // Set DCO step + modulation
+
+  P1DIR |= BIT6;
+  P1SEL |= BIT6;
+
+  /*** Timer0_A Set-Up ***/
+  TA0CCR0 |= 1000;           // PWM period
+  TA0CCR1 |= 1;              // TA0CCR1 PWM duty cycle
+  TA0CCTL1 |= OUTMOD_7;      // TA0CCR1 output mode = reset/set
+  TA0CTL |= TASSEL_2 + MC_1; // SMCLK, Up Mode (Counts to TA0CCR0)
+
+  /*** Timer1_A Set-Up ***/
+  TA1CCR0 |= 2000;           // Counter value
+  TA1CCTL0 |= CCIE;          // Enable Timer1_A interrupts
+  TA1CTL |= TASSEL_2 + MC_1; // SMCLK, Up Mode (Counts to TA1CCR0)
+
+  _BIS_SR(LPM0_bits + GIE); // Enter Low power mode 0 with interrupts enabled
+
+  return 0;
+}
+
+#pragma vector = TIMER1_A0_VECTOR // Timer1 A0 interrupt service routine
+__interrupt void Timer1_A0(void)
+{
+
+  TA0CCR1 += IncDec_PWM * 2;
+  if (TA0CCR1 > 998 || TA0CCR1 < 2)
+    IncDec_PWM = -IncDec_PWM;
+}
+\end{lstlisting}
 
 \subsection{作业5}
+编写接收程序和发送程序，当开发板串口接收到PC机发来的字符“1”时，点亮LED1，并向PC机发送“LED\_ON”；
+当当开发板串口接收到PC机发来的字符“0”时，熄灭LED1，并向PC机发送“LED\_OFF”；当收到其它字符时，翻转LED1状态，
+并向PC机发送“LED\_ON”或者“LED\_OFF”，表明LED1当前的状态。
+
+\begin{lstlisting}[language=c++,numbers=left,style=CppStyle,caption=作业5,label={code:p5}]
+
+#include <msp430g2553.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+void set_1mhz()
+{
+  BCSCTL1 = CALBC1_1MHZ; // Set range
+
+  DCOCTL = CALDCO_1MHZ;
+}
+
+void uart_init()
+{
+  UCA0CTL1 |= UCSSEL_2;
+  UCA0BR0 = 104;
+  UCA0BR1 = 0;
+  UCA0MCTL = UCBRS0;
+  UCA0CTL1 &= ~UCSWRST;
+  IE2 |= UCA0RXIE;
+}
+
+void uart_puts(char *c)
+{
+  while (*c)
+  {
+    while (!(IFG2 & UCA0TXIFG))
+    {
+      __nop();
+    }
+    UCA0TXBUF = *c++;
+  }
+}
+
+void __attribute__((interrupt(USCIAB0RX_VECTOR))) uart_rx_isr()
+{
+  volatile int led_on = !!UCA0RXBUF;
+
+  if (led_on)
+  {
+    P1OUT |= BIT0;
+    uart_puts("LED ON\n");
+  }
+  else
+  {
+    P1OUT &= ~BIT0;
+    uart_puts("LED OFF\n");
+  }
+}
+
+int main()
+{
+  WDTCTL = WDTPW | WDTHOLD; // stop watchdog timer
+
+  P1DIR |= BIT0; // configure P1.0 as output
+  P1OUT &= ~BIT0;
+
+  DCOCTL = 0;
+  set_1mhz();
+
+  P1SEL = BIT1 | BIT2;
+  P1SEL2 = BIT1 | BIT2;
+
+  uart_init();
+
+  __bis_SR_register(LPM0_bits | GIE);
+  return 0;
+}
+\end{lstlisting}
+
 
 \subsection{作业6}
+
+按如下格式在OLED屏上显示自己的姓名、学号和系别信息。
+
+\begin{lstlisting}[language=c++,numbers=left,style=CppStyle,caption=作业6,label={code:p6}]
+
+#include "msp430g2553.h"
+#include"I2C_OLED.H"
+#include"zimo.h"
+
+#define LEN(arr) (sizeof(arr)/sizeof(arr[0]))
+
+int name_indexes[]={1,2,7,8,9};
+int major_indexes[]={5,6,10,11,12,13,14};
+int sid[]={2,2,9,2,0,2,0,2,2,0,4,6,2,2};
+
+int main(void)
+{
+   system_clock();
+   I2C_OLED_Init();
+   while(1)
+   {
+	   OLED_All(0);
+//	   delay_ms(500);
+
+
+	   volatile int i=0,cnt=0;
+	   for(i=0;i<LEN(name_indexes);i++)
+	   {
+	       OLED_P16x16Ch((cnt++)*16,0,name_indexes[i]);
+	   }
+
+	   i=cnt=0;
+	   for(i=0;i<LEN(major_indexes);i++)
+	   {
+	       OLED_P16x16Ch((cnt++)*16,3,major_indexes[i]);
+	   }
+
+	   OLED_P16x16Ch(0,6,3);
+	   OLED_P16x16Ch(16,6,4);
+	   OLED_P6x8Str(32,6,"22920202204622");
+
+	   for(;;);
+   }
+}
+\end{lstlisting}
+
 
 \section{基于MSP430的智能小车行驶}
 
 \subsection{电路与程序设计}
+
+\subsubsection{需求分析}
+
+\begin{figure}[htbp]
+    \centering
+	\caption{小车赛道}
+	\label{fig:pcb}
+	\subfigure[赛道示意图]{
+		\begin{minipage}[t]{0.48\linewidth}
+			\centering
+			\includegraphics[width=0.8\textwidth]{car_track.png}
+	\end{minipage}}
+	\subfigure[轨迹示意图]{
+		\begin{minipage}[t]{0.48\linewidth}
+			\centering
+			\includegraphics[width=0.8\textwidth]{car_track_example.png}
+	\end{minipage}}
+\end{figure}
+
+\subsubsection{设计思路}
+
+\subsubsection{非对称的转向参数}
+
+\subsubsection{递增的转向速度加权}
+
+\begin{table}[htb]
+	\centering
+	\caption{加权函数}
+	\label{tbl:weight}
+	\renewcommand\arraystretch{1.5}
+	\begin{tabular}{c|c}
+		\toprule
+		\hline
+		权函数类型 & 表达式 \\
+		\hline
+		余弦型函数 & $y(k;n)=\cos(nk\pi)$ \\
+		\hline
+		多项式型函数 & $y(k;n)=a_nk^n+a_{n-1}k^{n-1}+\cdots+a_1k+a_0$ \\
+		\hline
+		指数型函数 & $y(k;a,m,n)=m\cdot a^k+n$ \\
+		\hline
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\begin{equation}
+	\begin{aligned}
+		y(k;a,m,n)=m\cdot a^k+n
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	y(k)=a\cdot y(k-1)+b
+\end{equation}
+
+\begin{figure}
+	\centering
+	\caption{函数图像}
+	\label{fig:weight}
+	\includegraphics[width=0.8\textwidth]{weight.png}
+\end{figure}
+
+\subsubsection{方案总结}
 
 \subsection{测试方案与测试结果}
 
