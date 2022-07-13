@@ -686,12 +686,28 @@ int main(void)
 
 \subsection{电路与程序设计}
 
-\subsubsection{需求分析}
+\subsubsection{需求分析和设计思路}
 
-\begin{figure}[htbp]
+\begin{figure}[htb]
+	\centering
+	\caption{总体设计流程图}
+	\label{fig:flowchart}
+	\includegraphics[width=0.9\textwidth]{flowchart.png}
+\end{figure}
+
+总体设计如图~\ref{fig:flowchart}。题目要求我们实现能够在地图上右转并停止的智能小车，时间可以在10s-20s之间调整。示意图如图~\ref{fig:car}(a)。
+根据题目要求，我们需要实现转向功能。由于我们只有两个传感器，不能通过测量两次黑块的时间间隔获取速度信息，因此
+我们退而求其次，将车轮可能的转速分为10档，通过试验测定挡位与用时的关系。
+
+由于电机和轮子的设计存在公差、导线长度等原因，两侧速度不能完全一致，因此实际轨迹可能如图~\ref{fig:car}(b)
+所示具有较多微调转弯和少量改变方向的转弯。由于红外传感器只能分辨黑色/非黑色，不能区分白色与木板底色，在改变
+方向时由于两传感器都从白块穿过而跑出赛道的情况时有发生。因此需要设计更加稳定的、更加容错的转向方法。
+
+
+\begin{figure}[htb]
     \centering
 	\caption{小车赛道}
-	\label{fig:pcb}
+	\label{fig:car}
 	\subfigure[赛道示意图]{
 		\begin{minipage}[t]{0.48\linewidth}
 			\centering
@@ -704,9 +720,30 @@ int main(void)
 	\end{minipage}}
 \end{figure}
 
-\subsubsection{设计思路}
-
 \subsubsection{非对称的转向参数}
+
+为了进行转向功能的具体实现，我们首先从需求出发进一步分析。由于赛道本身只向右转，因此所有的左转都是“微调转向”，
+而右转包括“微调转向”和“变向转向”，这意味着左转的需求是微小的转向，而右转的转向则需要兼顾小转向和大转向的需要。
+
+根据这一特征，我们可以对小车的控制加入归纳偏置来提高系统的稳定性。具体而言，我们对左转右转的控制采用了非对称的参数结构。
+如表~\ref{tbl:turnparam}。
+
+\begin{table}[htb]
+	\centering
+	\caption{左转右转的参数}
+	\label{tbl:turnparam}
+	\begin{tabular}{c|c|c}
+		\toprule
+		\hline
+		& 左转 & 右转 \\
+		\hline
+		参数类型 & 固定 & 可变 \\
+		\hline
+		转向轮速 & 左侧为右侧的80\%以上 & 右侧为左侧的2\%以下 \\
+		\hline
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 \subsubsection{递增的转向速度加权}
 
@@ -730,31 +767,135 @@ int main(void)
 	\end{tabular}
 \end{table}
 
-\begin{equation}
-	\begin{aligned}
-		y(k;a,m,n)=m\cdot a^k+n
-	\end{aligned}
-\end{equation}
+为了适应转向大小的需求在行驶过程中的变化，我们对每一次转向进行动态的加权。我们设计了如表~\ref{tbl:weight}的加权函数
+来对每一次转弯进行加权。根据我们对行驶过程的观察，我们选择了指数加权的方式，主要有以下原因：
 
-\begin{equation}
-	y(k)=a\cdot y(k-1)+b
-\end{equation}
-
-\begin{figure}
+\begin{figure}[htb]
 	\centering
 	\caption{函数图像}
 	\label{fig:weight}
-	\includegraphics[width=0.8\textwidth]{weight.png}
+	\includegraphics[width=0.48\textwidth]{weight.png}
 \end{figure}
 
-\subsubsection{方案总结}
+\begin{itemize}
+\item 指数型函数的图像如图~\ref{fig:weight}。这符合转向需要逐步增大的需要。
+\item 指数函数可以用如\eqref{eqn:recur_w}的形式递推地通过多项式实现，
+可以减少进行复杂运算的需要。由于MSP430较弱的硬件性能，这能大大提高计算效率，
+防止由于计算过于缓慢导致小车行驶不正常。
+\end{itemize}
+
+\begin{equation}
+	\label{eqn:recur_w}
+	y(k)=a\cdot y(k-1)+b
+\end{equation}
+
+经过这种加权处理，小车的转弯幅度依次增大，由于我们小车传感器右偏的设计，经过90°弯道
+之后几乎不会触发转弯，因此可以达到稳定转向的目的。
+
+同时，由于初期转向有
+\begin{enumerate}
+	\item 加权值较小
+	\item 权函数增长缓慢
+\end{enumerate}
+的特点，小车在行驶初期较为稳定，避免了冲出赛道的事故发生。我们基于实践经验，将\eqref{eqn:recur_w}
+中的参数设置为$a=3,b=40$，获得了较好的效果。
+
+\subsubsection{方案合理性分析}
+为了对选择一特定函数作为加权的方案能够产生很好的效果这一点给出合理的解释，
+考察PID控制的公式\eqref{eqn:pid}，
+\begin{equation}
+	\label{eqn:pid}
+	u(n)=K_p\{e(n)+\frac{T}{T_I}\sum_{i=0}^ne(i)+\frac{T_D}{T}[e(n)-e(n-1)]\}+u_0
+\end{equation}
+该公式要求
+\begin{enumerate}
+	\item 对误差$e(n)$有一个较为准确的估计
+	\item 积分项$\frac{T}{T_I}\sum_{i=0}^ne(i)$需要保存前$n+1$次的误差值
+	\item 参数的计算涉及到浮点数的乘除
+\end{enumerate}
+很显然，由于只有两个红外传感器，要求1十分困难，甚至几乎不可能完美的实现；由于MSP430极为有限的性能约束，
+要求2十分不现实，要求3很可能降低性能，然而积分控制是实现稳定的控制的必要要求，这产生了要求和能力之间的矛盾。
+
+但是在现实环境中考量这一公式，对于一个长度不太长、变换不太大的赛道，转向的控制次数应当不太多，这意味着
+转向控制量的值的变化大概率能够使用一个\emph{简单的}函数$w(n)$来进行\emph{相当精确的}近似。即\eqref{eqn:pid_approx}。
+\begin{equation}
+	\label{eqn:pid_approx}
+	u(n)\approx K_p\cdot w(n)\cdot u_0
+\end{equation}
+这里的$w(n)$就是我们选择的加权函数。这个加权函数的效果就是同时近似比例项、积分项、微分项。依赖于\emph{转向次数不太多}这一假设，
+这样的近似可以是非常精确的。
+
+这种方案将能够解决上述提出的大多数困难。事实上，依赖于我们选择的指数型加权函数的递推形式，我们实现了移除所有的浮点数除法运算，将加法乘法
+的计算量和对过往状态的存储量都降低到了常数级（\emph{与转向次数$n$无关}），这带来了可观的性能提升。
+
+事实上，在只有两个传感器的情况下，我认为任何PID的实现都一定会引入一些（可能是隐式的）来自观察和试验的假设。而我们的工作将这中假设进行了
+有效的形式化，大大提升了控制程序的可解释性，更加方便了选择、设计、分析与调试。虽然我们的方案在一定程度上牺牲了泛用性，引入了转向次数
+不太多这一较强的假设，但是这种方案有相对完整的数学解释，并且在实际测试中有良好的表现。
+
+\subsubsection{电路设计}
+
+电路设计如图~\ref{fig:schematic2}。
+
+\begin{figure}[H]
+	\centering
+	\caption{原理图}
+	\label{fig:schematic2}
+	\includegraphics[width=0.6\textwidth]{Schematic.png}
+\end{figure}
+
 
 \subsection{测试方案与测试结果}
 
+\begin{enumerate}
+	\item \textbf{功能测试：}首先对小车的基本功能进行测试，一开始发现小车的电机运转方式奇怪而没有规律。但在按任何单片机外的
+	按键的时候都会恢复正常。我们对小车的电路进行排查，由于按键会向单片机引脚输入低电平（接地），我们怀疑单片机接地不良引发了问题，
+	因此进行测量，果然发现单片机接地处电位不正常，导致了单片机GPIO输出不正常。重新对GND对应的针脚进行焊接之后测量电位正常，
+	测试小车工作正常。在测试场地调整红外传感器上的电位器后小车基本正常工作。
+
+	\item \textbf{稳定测试：}为了测试小车运行的稳定性，我们调整初始放置的角度进行测试，发现小车都能正确调整方向回到轨道。
+	因此小车在方向上有较好的稳定性。同时调整赛道坡道进行测试，发现坡道角较大的时候由于小车侧滑，传感器无法扫描到停止线
+	因此无法正常停止。我们因此调整了传感器安装的位置，解决了这个问题。
+
+	\item \textbf{挡位-时间测试：}为了控制速度，我们在设计程序时加入了10个速度级别，因此需要对速度级别对应的时间进行测量。
+	进行计时之后得到了表~\ref{tbl:time}。
+	\begin{table}[H]
+		\centering
+		\caption{时间测量}
+		\label{tbl:time}
+		\begin{tabular}{c|c}
+			\toprule
+			\hline
+			挡位 & 时间 \\
+			\hline
+			10 & 20s \\
+			12 & 17s \\
+			14 & 15s \\
+			16 & 12s \\
+			18 & 10s \\
+			\hline
+			\bottomrule
+		\end{tabular}
+	\end{table}
+	根据测量结果，我们能灵活调节小车的行驶时间。
+\end{enumerate}
+
 \subsection{本人所做的工作}
+
+在小车项目中我完成了程序的设计、测试和参数的调整。
 
 \subsection{经验总结与个人感受}
 
+\subsubsection{经验总结}
+
+\begin{enumerate}
+	\item 设计PCB板要考虑到安装的合理性。由于设计的有些紧密，我们安装LED屏幕时需要使用线接出来，
+	造成了一定的不便。
+
+	\item 在安装元件时要注意元件之间的相互关系。我们在焊接供电插口的时候由于没有注意插口朝向，与其他元件
+	产生了干涉，不得不拆下来，由于残留焊锡堵住焊孔清理十分麻烦而处理了很长时间。
+
+	
+\end{enumerate}
 
 \section{人工智能入门}
 
