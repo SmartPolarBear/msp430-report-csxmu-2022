@@ -11,12 +11,11 @@
 	},
 	subsection = {
 		format+ = \zihao{5} \heiti \raggedright,
-		name = {\thesubsection、},
-		name = {,、},
-		number = \arabic{subsection},
+		name = {\thesubsection },
+		name = {, },
 		beforeskip = 1.0ex plus 0.2ex minus .2ex,
 		afterskip = 1.0ex plus 0.2ex minus .2ex,
-		aftername = \hspace{0pt}
+		aftername = \hspace{8pt}
 	}
 }
 
@@ -365,6 +364,26 @@ PCB制作过程中的原理图如图~\ref*{fig:schematic}。
 
 \section{MSP430单片机部分}
 
+CCS作为一款IDE在2020年代的视角下看是不合格的。它没有良好的代码智能提示和重构功能，
+也不能很好地支持源代码版本控制工具，因此我使用VSCode+PlatformIO这一新平台完成了代码的编写
+这款插件通过配置相应的选项可以完美地兼容MSP430G2553平台。如图~\ref{fig:platformio}
+
+\begin{figure}[htb]
+    \centering
+	\caption{PlatformIO}
+	\label{fig:platformio}
+	\subfigure[PlatformIO启动页]{
+		\begin{minipage}[t]{0.48\linewidth}
+			\centering
+			\includegraphics[width=0.8\textwidth]{platformio.png}
+	\end{minipage}}
+	\subfigure[相关配置文件]{
+		\begin{minipage}[t]{0.48\linewidth}
+			\centering
+			\includegraphics[width=0.8\textwidth]{platformio_cfg.png}
+	\end{minipage}}
+\end{figure}
+
 \subsection{作业1}
 读取 MSP430G2553 LaunchPad 上S2的按键状态，并用该按键控制LED1。按键按下时让LED 1亮起，按键松开时让LED 1熄灭。
 
@@ -445,8 +464,8 @@ int main()
 \end{lstlisting}
 
 \subsubsection{现象和讨论}
-通过对比将主时钟设为1MHz和8MHz的情况下，能明显感觉到8MHz下LED1闪烁频率比1MHz快。
-通过改变主时钟频率来改变运行速度从而改变时钟的频率。
+通过对比将主时钟设为1MHz和8MHz的情况下，能明显发现到8MHz下LED1闪烁频率比1MHz快。
+可见，主时钟频率越大、每个时钟周期的时间就越短，相对来说运行就越快，但功耗也越多。
 
 
 \subsection{作业3}
@@ -509,6 +528,9 @@ int main(void)
 }
 \end{lstlisting}
 
+\subsubsection{现象和讨论}
+将C1接到单片机的GND端，R1对应开关S1接单片机P1.4端口，R2对应开关S2接单片机P1.5端口用来触发中断。
+当对应开关（第一列前两行）按下时，对应端口由输出高电平变为输出低电平，对应LED灯就会改变一次亮灭状态，
 
 \subsection{作业4}
 编程实现：利用定时器编写呼吸灯。所谓呼吸灯是指LED在一个周期内先逐渐变亮，再逐渐变暗。
@@ -556,6 +578,11 @@ __interrupt void Timer1_A0(void)
     IncDec_PWM = -IncDec_PWM;
 }
 \end{lstlisting}
+
+\subsubsection{现象和讨论}
+通过实验现象可以发现LED在一个周期内先逐渐变亮再逐渐变暗。通过不断设置CCR1的值不断变大，
+调节PWM占空比，使得LED灯逐渐变亮，然后当达到最亮后，通过设置CCR1的值不断减小，
+，调节PWM占空比，使LED灯逐渐变暗。
 
 \subsection{作业5}
 编写接收程序和发送程序，当开发板串口接收到PC机发来的字符“1”时，点亮LED1，并向PC机发送“LED\_ON”；
@@ -633,6 +660,12 @@ int main()
 }
 \end{lstlisting}
 
+\subsubsection{现象和讨论}
+打开串口助手，当开发板串口接收到PC机发来的字符“1”时， LED1亮，并向PC机发送“LED\_ON”；
+当开发板串口接收到PC机发来的字符“0”时，熄灭LED1，并向PC机发送“LED\_OFF”；
+当收到其它字符时，翻转LED1状态，并向PC机发送“LED\_ON”或者“LED\_OFF”，表明LED1当前的状态。
+函数$uart\_puts$用来向PC机发送字符串，中断函数接受PC机发来的字符，
+字符为0则灯灭，为1则灯亮。
 
 \subsection{作业6}
 
@@ -680,6 +713,13 @@ int main(void)
    }
 }
 \end{lstlisting}
+
+\subsubsection{现象和讨论}
+
+通过字模软件，取出自己的姓名、系别、学号的字模，然后
+填写到codetab.h文件中，同时在main.c函数中编辑显示的位置。
+一个汉字的宽度是16，高度值是2。字母和数字的宽度则是8。
+由于学号较长，所以使用较小的字体。
 
 
 \section{基于MSP430的智能小车行驶}
@@ -730,6 +770,7 @@ int main(void)
 
 \begin{table}[htb]
 	\centering
+	\renewcommand\arraystretch{1.5}
 	\caption{左转右转的参数}
 	\label{tbl:turnparam}
 	\begin{tabular}{c|c|c}
@@ -834,7 +875,7 @@ int main(void)
 
 \subsubsection{电路设计}
 
-电路设计如图~\ref{fig:schematic2}。
+电路设计如图~\ref{fig:schematic2}。系统组成如表~\ref{tbl:system}
 
 \begin{figure}[H]
 	\centering
@@ -842,6 +883,30 @@ int main(void)
 	\label{fig:schematic2}
 	\includegraphics[width=0.6\textwidth]{Schematic.png}
 \end{figure}
+
+\begin{table}[H]
+	\centering
+	\renewcommand\arraystretch{1.5}
+	\caption{系统组成}
+	\label{tbl:system}
+	\begin{tabular}{c|c}
+		\toprule
+		\hline
+		显示模块 & OLED液晶显示 \\
+		\hline
+		供电方式 & 3节18650锂电池 \\
+		\hline
+		输入方式 & 红外循迹、按键 \\
+		\hline
+		输出方式 & 小车（2驱动+1万向轮）OLED显示屏 蜂鸣器 \\
+		\hline
+		控制芯片 & MSP430单片机（MSP430G2 launchpad） \\
+		\hline
+		制作工艺 & 印制电路板 \\
+		\hline
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 
 \subsection{测试方案与测试结果}
@@ -860,6 +925,7 @@ int main(void)
 	进行计时之后得到了表~\ref{tbl:time}。
 	\begin{table}[H]
 		\centering
+		\renewcommand\arraystretch{1.5}
 		\caption{时间测量}
 		\label{tbl:time}
 		\begin{tabular}{c|c}
@@ -883,9 +949,7 @@ int main(void)
 
 在小车项目中我完成了程序的设计、测试和参数的调整。
 
-\subsection{经验总结与个人感受}
-
-\subsubsection{经验总结}
+\subsection{经验总结}
 
 \begin{enumerate}
 	\item 设计PCB板要考虑到安装的合理性。由于设计的有些紧密，我们安装LED屏幕时需要使用线接出来，
@@ -894,16 +958,166 @@ int main(void)
 	\item 在安装元件时要注意元件之间的相互关系。我们在焊接供电插口的时候由于没有注意插口朝向，与其他元件
 	产生了干涉，不得不拆下来，由于残留焊锡堵住焊孔清理十分麻烦而处理了很长时间。
 
-	
+	\item 在进行调整的时候要做到统筹兼顾。在调试时不能只对代码进行修改，也要前瞻性地设计能够方便利用按钮等调整的参数，
+	以及通过微调小车的结构设计、传感器的间距、位置等根据需求进行恰当的统筹安排。
 \end{enumerate}
+
+\subsection{个人感受}
+
+通过这次制作小车的课题，我们在一个多星期的实训里收获颇丰。
+
+一是对电子工艺设计中的理论和实际应用有了新理解。在实训过程中，我们需要对电路进行恰当的连接与设计，进而形成完整的小车结构，最后进行单片机的编程。
+这一系列方法既要求全面的思考，也要求细致的实现，更要求对相关知识的理解与掌握。通过这一过程，我们不仅练习了嵌入式编程，更掌握了一些电路板设计和控制论中的理论知识，
+还对这些知识的实际应用有了更深刻的体会。
+
+二是团队协作和分工的能力得到了新提升。从设计，到电路板的选择和小车的焊接，到对参数调节和改进的一步步尝试，
+再到最后形成完整的通过验收的小车，团队协作和分工贯穿始终。从小车的设计到实际实现的代码编写、调整，都离不开分工和合作。
+在实训中，我们很好地锻炼了团队协作和分工的能力，让我们能够在今后的学习与生活中更好地与他人实现合作和交流。
+
+三是实际编写代码实现想法和设计的能力得到了新锻炼。正所谓“力行而后知之真”，
+在我们确定了和其他组不一样的控制方式之后，必须通过编写代码将理论和设计的方案落到实处才能顺利完成实训的任务。
+在这次实训中，我们使用PlatformIO这一新平台完成了代码的编写，这既涉及到对新环境的配置，
+也涉及到对我们设计的方案的正确实现。通过这次实训，我们培养的这些能力对以后的学习、竞赛乃至今后的工作都有着重要的意义。
+
 
 \section{人工智能入门}
 
 
 \section{实验改进建议}
 
+\clearpage
 
-\section{实训总结}
+\appendix
+\section*{附录：小车控制行驶参数部分代码}
+
+小车行驶参数控制（速度与转向）部分的代码如~\ref{code:carctl}
+
+\begin{lstlisting}[language=c++,numbers=left,style=CppStyle,caption=作业6,label={code:carctl}]
+
+#define TURN_DELAY 200
+
+int turn_constant = 30;
+const int turn_multipier = 3;
+const int turn_bias = 40;
+#define TURN_MAX 120
+
+int delaytime;
+void go()
+{
+  P2DIR |= (BIT1 + BIT4);
+  P2SEL |= (BIT1 + BIT4);
+  TA1CCR0 = 20000;        
+  TA1CCTL1 = OUTMOD_7;
+  TA1CCR1 = 0; 
+  TA1CCTL2 = OUTMOD_7;
+  TA1CCR2 = 0; 
+
+ 
+  TA1CTL = (TASSEL1 + ID0 + ID1 + MC0);
+
+  while (1)
+  {
+    OLED_ShowChar(80, 0, t_miao / 100 + '0'); 
+    OLED_ShowChar(88, 0, t_miao % 100 / 10 + '0');
+    OLED_ShowChar(96, 0, t_miao % 10 + '0');
+
+    if (hy2 != 0 && hy1 != 0) 
+    {
+      TA1CCR1 = 0; 
+      TA1CCR2 = 0;
+      oled_puts(0, 0, "end ");
+
+      while (1)
+      {
+        FM_L;
+        delay_ms(100);
+        FM_H; 
+        delay_ms(100);
+      }
+    }
+    else 
+    {
+      if (hy1 == 0) 
+      {
+        oled_puts(0, 2, "hy1 detect    ");
+      }
+      else
+      {
+        oled_puts(0, 2, "hy1 not detect");
+      }
+
+      if (hy2 == 0) 
+      {
+        oled_puts(0, 4, "hy2 detect     ");
+      }
+      else
+      {
+        oled_puts(0, 4, "hy2 not detect");
+      }
+
+      //  setmode=10-20  100-300 R
+      if (hy1 == 0 && hy2 != 0) 
+      {
+        TA1CCR2 = (int)turn_constant * (100 + 20 * (setmode - 10)); 
+
+        turn_constant = turn_multipier * turn_constant + turn_bias;
+        if (turn_constant > TURN_MAX)
+        {
+          turn_constant = TURN_MAX;
+        }
+
+        if (setmode <= 13) 
+        {
+          TA1CCR1 = (int)10.5 * 30 * 0.2;
+          delay_ms(TURN_DELAY);
+        }
+        else if (setmode <= 15)
+        {
+          TA1CCR1 = (int)10.5 * 50 * 0.2;
+          delay_ms(TURN_DELAY);
+        }
+        else if (setmode <= 17)
+        {
+          TA1CCR1 = (int)10.5 * 60 * 0.2;
+          delay_ms(TURN_DELAY);
+        }
+        else
+        {
+          TA1CCR1 = (int)10.5 * 70 * 0.2;
+          delay_ms(TURN_DELAY);
+        }
+        delay_ms(30);
+      }
+      else if (hy2 == 0 && hy1 != 0)
+      {
+        volatile int speed = 30.5 * (100 + 20 * (setmode - 10));
+        TA1CCR1 = (int)speed; 
+
+        if (setmode <= 13)
+        {
+          TA1CCR2 = (int)speed;
+          delay_ms(30);
+        }
+        else if (setmode <= 16)
+        {
+          TA1CCR2 = (int)speed * 0.8;
+          delay_ms(30);
+        }
+        else
+        {
+          TA1CCR2 = (int)speed * 0.7;
+          delay_ms(30);
+        }
+      }
+      else if (hy1 == 0 && hy2 == 0)
+      {
+        TA1CCR1 = (int)30.5 * (100 + 20 * (setmode - 10));
+        TA1CCR2 = (int)32 * (100 + 20 * (setmode - 10));
+      }
+    }
+  }
+}
+\end{lstlisting}
 
 
 \end{spacing}
